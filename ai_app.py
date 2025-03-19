@@ -121,7 +121,6 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
     summary = generate_summary(transcript)
 
 #Step 4: Optional TTS
-    audio_file = None
     if tts:
         audio_file = text_to_speech(summary)
 
@@ -133,11 +132,16 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
         "audio": audio_file
     }
 
-#Example usage
+# I did an example usage so you can see the workflow and easily implement it 
 if __name__ == "__main__":
     analysis = analyze_video(
         "Love in Every Word (Odogwu Paranra) by Omoni Oboli",
-        tts=False
+        tts=True
     )
 
-    print(analysis)
+    print(f"Title: {analysis['title']}")
+    print(f"Channel: {analysis['channel']}")
+    print(f"Link: {analysis['link']}")
+    print("\nSummary:")
+    print(analysis['summary'])
+    print(f"\nAudio summary saved to: {analysis['audio']}")
