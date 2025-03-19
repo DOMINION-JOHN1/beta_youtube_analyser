@@ -1,34 +1,36 @@
 import os
 import json
 from dotenv import load_dotenv
-from serpapi import GoogleSearch 
+from serpapi import GoogleSearch
 from groq import Groq
 from youtube_transcript_api import YouTubeTranscriptApi
 from gtts import gTTS
 import re
+from datetime import datetime
 
 
 # Initialize clients
 load_dotenv()
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 serpapi_key = os.getenv("SERPAPI_API_KEY")
-# api_key = os.getenv("GROQ_API_KEY")
 
-#Helper functions
+app_domain = os.getenv("APP_DOMAIN")
+
+
+# Helper functions
 def extract_videoid(url: str) -> str:
+    print("extracting videoId, video url...", url)
     """Extract YouTube video ID from URL"""
     regex = r"(?:v=|/)([0-9A-Za-z-]{11}).*"
     match = re.search(regex, url)
     return match.group(1) if match else None
 
-#Core functionality
+
+# Core functionality
 def search_youtube_video(query: str) -> dict:
+    print("searching video result...", query, "\n")
     """Search YouTube videos using SerpAPI"""
-    params = {
-        "engine": "youtube",
-        "search_query": query,
-        "api_key": serpapi_key
-    }
+    params = {"engine": "youtube", "search_query": query, "api_key": serpapi_key}
 
     try:
         results = GoogleSearch(params).get_dict()
@@ -36,20 +38,27 @@ def search_youtube_video(query: str) -> dict:
         return {
             "title": video.get("title"),
             "link": video.get("link"),
-            "channel": video.get("channel").get("name") if video.get("channel") else None
+            "channel": (
+                video.get("channel").get("name") if video.get("channel") else None
+            ),
+            # "video_id": video.get("")
         }
     except Exception as e:
         return {"error": f"Search failed: {str(e)}"}
 
+
 def get_video_transcript(video_id: str) -> str:
+    print("getting video transcript...", video_id, "\n")
     """Get YouTube video transcript"""
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         return " ".join([entry["text"] for entry in transcript])
     except Exception as e:
         return f"Transcript error: {str(e)}"
-    
+
+
 def generate_summary(text: str) -> str:
+    print("generating video summary...")
     """Generate AI summary using Llama"""
     prompt = f"""Analyze this video transcript and create a detailed summary including:
     
@@ -64,14 +73,24 @@ def generate_summary(text: str) -> str:
     response = groq_client.chat.completions.create(
         model="llama3-70b-8192",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3)
+        temperature=0.3,
+    )
     return response.choices[0].message.content
 
-def text_to_speech(text: str, filename: str = "summary.mp3"):
+
+def text_to_speech(text: str, filename: str = "summary"):
+    print("converting summary to speech...", "\n\n")
     """Convert text summary to speech"""
-    tts = gTTS(text=text, lang='en', slow=False)
-    tts.save(filename)
-    return filename
+
+    # Ensure the 'static' directory exists
+    os.makedirs("static", exist_ok=True)
+
+    tts = gTTS(text=text, lang="en", slow=False)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    audio_path = f"static/{filename}_{timestamp}.mp3"
+    tts.save(audio_path)
+    return audio_path
+
 
 # Function calling setup
 tools = [
@@ -83,11 +102,14 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Search query or video title"}
+                    "query": {
+                        "type": "string",
+                        "description": "Search query or video title",
+                    }
                 },
-                "required": ["query"]
-            }
-        }
+                "required": ["query"],
+            },
+        },
     },
     {
         "type": "function",
@@ -97,12 +119,15 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "text": {"type": "string", "description": "Text content to summarize"}
+                    "text": {
+                        "type": "string",
+                        "description": "Text content to summarize",
+                    }
                 },
-                "required": ["text"]
-            }
-        }
-    }
+                "required": ["text"],
+            },
+        },
+    },
 ]
 
 
@@ -112,36 +137,43 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
     search_result = search_youtube_video(prompt)
     if "error" in search_result:
         return {"error": search_result["error"]}
+    print("video search result...", search_result, "\n")
 
-#Step 2: Get transcript
+    # Step 2: Get transcript
     video_id = extract_videoid(search_result["link"])
     transcript = get_video_transcript(video_id)
 
-#Step 3: Generate summary
+    # Step 3: Generate summary
     summary = generate_summary(transcript)
 
-#Step 4: Optional TTS
+    audio_file_path = None
+    # Step 4: Optional TTS
     if tts:
-        audio_file = text_to_speech(summary)
+        audio_file_path = text_to_speech(summary, video_id)
 
     return {
         "title": search_result["title"],
         "link": search_result["link"],
         "channel": search_result["channel"],
         "summary": summary,
-        "audio": audio_file
+        "audio": audio_file_path,
+        "audio_summary_url": (
+            f"{app_domain}/download-audio/{audio_file_path.split('/')[-1]}"
+            if audio_file_path
+            else None
+        ),
     }
 
-# I did an example usage so you can see the workflow and easily implement it 
+
+# I did an example usage so you can see the workflow and easily implement it
 if __name__ == "__main__":
     analysis = analyze_video(
-        "Love in Every Word (Odogwu Paranra) by Omoni Oboli",
-        tts=True
+        "Love in Every Word (Odogwu Paranra) by Omoni Oboli", tts=True
     )
 
     print(f"Title: {analysis['title']}")
     print(f"Channel: {analysis['channel']}")
     print(f"Link: {analysis['link']}")
     print("\nSummary:")
-    print(analysis['summary'])
+    print(analysis["summary"])
     print(f"\nAudio summary saved to: {analysis['audio']}")
