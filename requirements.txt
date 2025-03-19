@@ -1,0 +1,8 @@
+dotenv
+fastapi[standard]
+youtube-transcript-api
+gtts
+serpapi
+google-search-results
+textblob
+groq
