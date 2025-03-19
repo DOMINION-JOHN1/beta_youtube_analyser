@@ -11,6 +11,7 @@ app = FastAPI(title="AI Budget Generator", version="1.0")
 
 class VideoRequestQuery(BaseModel):
     user_query: str
+    generate_tts: bool
 
 
 # Health check endpoint
@@ -21,7 +22,7 @@ def read_root():
 
 @app.post("/summarize")
 def get_video_summary(video_request: VideoRequestQuery):
-    analysis = analyze_video(video_request.user_query)
+    analysis = analyze_video(video_request.user_query, video_request.generate_tts)
     return JSONResponse(analysis)
 
 
