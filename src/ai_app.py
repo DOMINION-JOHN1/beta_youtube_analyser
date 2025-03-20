@@ -153,8 +153,9 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
     # Step 3: Generate summary
     summary = generate_summary(transcript)
 
+    # Step 4: Optional TTS
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{video_id}_{timestamp}"  # Step 4: Optional TTS
+    filename = f"{video_id}_{timestamp}" if tts else None
     if tts:
         # audio_file_path = text_to_speech(summary, filename)
         # Trigger TTS generation asynchronously
@@ -166,7 +167,9 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
         "channel": search_result["channel"],
         "summary": summary,
         "audio_filename": filename,
-        "audio_summary_url": f"{app_domain}/download-audio/{filename}.mp3",
+        "audio_summary_url": (
+            f"{app_domain}/download-audio/{filename}.mp3" if tts else None
+        ),
     }
 
 
