@@ -7,6 +7,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from gtts import gTTS
 import re
 from datetime import datetime
+import threading
 
 
 # Initialize clients
@@ -86,10 +87,16 @@ def text_to_speech(text: str, filename: str = "summary"):
     os.makedirs("static", exist_ok=True)
 
     tts = gTTS(text=text, lang="en", slow=False)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    audio_path = f"static/{filename}_{timestamp}.mp3"
+    audio_path = f"static/{filename}.mp3"
     tts.save(audio_path)
     return audio_path
+
+
+# Function to trigger TTS in a separate thread
+def async_text_to_speech(summary: str, filename: str):
+    threading.Thread(
+        target=text_to_speech, args=(summary, filename), daemon=True
+    ).start()
 
 
 # Function calling setup
@@ -146,22 +153,20 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
     # Step 3: Generate summary
     summary = generate_summary(transcript)
 
-    audio_file_path = None
-    # Step 4: Optional TTS
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{video_id}_{timestamp}"  # Step 4: Optional TTS
     if tts:
-        audio_file_path = text_to_speech(summary, video_id)
+        # audio_file_path = text_to_speech(summary, filename)
+        # Trigger TTS generation asynchronously
+        async_text_to_speech(summary, filename)
 
     return {
         "title": search_result["title"],
         "link": search_result["link"],
         "channel": search_result["channel"],
         "summary": summary,
-        "audio": audio_file_path,
-        "audio_summary_url": (
-            f"{app_domain}/download-audio/{audio_file_path.split('/')[-1]}"
-            if audio_file_path
-            else None
-        ),
+        "audio_filename": filename,
+        "audio_summary_url": f"{app_domain}/download-audio/{filename}.mp3",
     }
 
 
