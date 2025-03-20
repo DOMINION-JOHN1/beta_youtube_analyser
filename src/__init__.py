@@ -4,9 +4,10 @@ from pydantic import BaseModel
 import os
 
 from src.ai_app import analyze_video
+from src.ai_app2 import analyze_video_with_function_calls
 
 # Initialize FastAPI app
-app = FastAPI(title="AI Budget Generator", version="1.0")
+app = FastAPI(title="AI Youtube Video Summary API", version="1.0")
 
 
 class VideoRequestQuery(BaseModel):
@@ -23,6 +24,14 @@ def read_root():
 @app.post("/summarize")
 def get_video_summary(video_request: VideoRequestQuery):
     analysis = analyze_video(video_request.user_query, video_request.generate_tts)
+    return JSONResponse(analysis)
+
+
+@app.post("/summarize2")
+async def summarize_video(video_request: VideoRequestQuery):
+    analysis = analyze_video_with_function_calls(
+        video_request.user_query, video_request.generate_tts
+    )
     return JSONResponse(analysis)
 
 

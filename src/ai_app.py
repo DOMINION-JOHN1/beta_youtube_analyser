@@ -166,7 +166,7 @@ def analyze_video(prompt: str, tts: bool = False) -> dict:
         "link": search_result["link"],
         "channel": search_result["channel"],
         "summary": summary,
-        "audio_filename": filename,
+        "audio_filename": f"{filename}.mp3",
         "audio_summary_url": (
             f"{app_domain}/download-audio/{filename}.mp3" if tts else None
         ),
